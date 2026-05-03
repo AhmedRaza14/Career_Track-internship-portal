@@ -477,7 +477,12 @@ export default function ProfilePage() {
             {profile?.resume_url && (
               <div className={styles['resume-info']} style={{ marginBottom: '15px' }}>
                 <span>✓ Resume uploaded</span>
-                <a href={`${process.env.NEXT_PUBLIC_API_BASE_URL}${profile.resume_url}`} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+                <a
+                  href={profile.resume_url.startsWith('http') ? profile.resume_url : `${process.env.NEXT_PUBLIC_API_BASE_URL}${profile.resume_url}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline"
+                >
                   View Resume
                 </a>
               </div>

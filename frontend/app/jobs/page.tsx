@@ -610,7 +610,7 @@ export default function JobsPage() {
                     </div>
                     <div className={styles['applicant-actions']}>
                       <a
-                        href={`${process.env.NEXT_PUBLIC_API_BASE_URL}${applicant.resume_url}`}
+                        href={applicant.resume_url.startsWith('http') ? applicant.resume_url : `${process.env.NEXT_PUBLIC_API_BASE_URL}${applicant.resume_url}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="btn btn-primary"
