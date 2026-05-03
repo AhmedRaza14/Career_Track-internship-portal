@@ -1,21 +1,22 @@
 import os
 from fastapi import UploadFile, HTTPException
-import shutil
+import cloudinary
+import cloudinary.uploader
 from pathlib import Path
+from dotenv import load_dotenv
 
-# Get the backend directory (parent of app directory)
-BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv()
 
-# Create uploads directory if it doesn't exist
-UPLOAD_DIR = BASE_DIR / "uploads" / "resumes"
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-PROFILE_PICS_DIR = BASE_DIR / "uploads" / "profile_pictures"
-PROFILE_PICS_DIR.mkdir(parents=True, exist_ok=True)
+# Configure Cloudinary
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
+)
 
 async def upload_resume(file: UploadFile) -> str:
     """
-    Upload resume PDF to local storage and return the URL
+    Upload resume PDF to Cloudinary and return the URL
     """
     # Validate file type
     if not file.filename.endswith('.pdf'):
@@ -29,27 +30,24 @@ async def upload_resume(file: UploadFile) -> str:
         raise HTTPException(status_code=400, detail="File size exceeds 5MB limit")
 
     try:
-        # Generate unique filename
-        import uuid
-        unique_filename = f"{uuid.uuid4()}_{file.filename}"
-        file_path = UPLOAD_DIR / unique_filename
+        # Upload to Cloudinary
+        result = cloudinary.uploader.upload(
+            contents,
+            resource_type="raw",
+            folder="careertrack/resumes",
+            public_id=file.filename.replace('.pdf', ''),
+            overwrite=True
+        )
 
-        # Save file to local storage
-        with open(file_path, "wb") as f:
-            f.write(contents)
-
-        print(f"File saved to: {file_path}")
-        print(f"File exists: {file_path.exists()}")
-
-        # Return relative URL path (will be served by FastAPI static files)
-        return f"/uploads/resumes/{unique_filename}"
+        # Return the secure URL from Cloudinary
+        return result['secure_url']
     except Exception as e:
         print(f"Upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
 
 async def upload_profile_picture(file: UploadFile) -> str:
     """
-    Upload profile picture to local storage and return the URL
+    Upload profile picture to Cloudinary and return the URL
     """
     # Validate file type
     allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif']
@@ -64,17 +62,14 @@ async def upload_profile_picture(file: UploadFile) -> str:
         raise HTTPException(status_code=400, detail="File size exceeds 2MB limit")
 
     try:
-        # Generate unique filename
-        import uuid
-        file_extension = Path(file.filename).suffix
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
-        file_path = PROFILE_PICS_DIR / unique_filename
+        # Upload to Cloudinary
+        result = cloudinary.uploader.upload(
+            contents,
+            folder="careertrack/profile_pictures",
+            overwrite=True
+        )
 
-        # Save file to local storage
-        with open(file_path, "wb") as f:
-            f.write(contents)
-
-        # Return relative URL path (will be served by FastAPI static files)
-        return f"/uploads/profile_pictures/{unique_filename}"
+        # Return the secure URL from Cloudinary
+        return result['secure_url']
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Profile picture upload failed: {str(e)}")
