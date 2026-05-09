@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
 from app.models import UserRole, JobType
 
 # Authentication Schemas
@@ -140,12 +140,12 @@ class JobCreate(BaseModel):
     title: str
     company: str
     description: str
-    job_type: JobType
+    job_type: str  # Will be validated in the endpoint
     location: str
     salary_range: Optional[str] = None
     required_skills: Optional[str] = None
-    experience_level: Optional[str] = None
-    deadline: Optional[datetime] = None
+    experience_level: Optional[str] = None  # ADDED
+    deadline: Optional[date] = None
 
 class JobResponse(BaseModel):
     id: int
@@ -157,7 +157,7 @@ class JobResponse(BaseModel):
     location: str
     salary_range: Optional[str]
     required_skills: Optional[str]
-    experience_level: Optional[str]
+    experience_level: Optional[str]  # ADDED
     deadline: Optional[datetime]
     is_active: bool
     created_at: datetime

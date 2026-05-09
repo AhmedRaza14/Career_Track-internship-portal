@@ -11,6 +11,7 @@ export default function DashboardPage() {
     applications: 0,
     collaborations: 0,
     messages: 0,
+    unreadMessages: 0,
   });
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState('');
@@ -45,15 +46,19 @@ export default function DashboardPage() {
         headers,
       });
 
-      // Fetch conversations count
+      // Fetch conversations count and unread messages
       const convResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/messages/conversations`, {
         headers,
       });
+
+      // Calculate total unread messages
+      const totalUnread = convResponse.data.reduce((sum: number, conv: any) => sum + (conv.unread_count || 0), 0);
 
       setStats({
         applications: appsResponse.data.length || 0,
         collaborations: collabResponse.data.length || 0,
         messages: convResponse.data.length || 0,
+        unreadMessages: totalUnread,
       });
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -97,7 +102,14 @@ export default function DashboardPage() {
             <span className={styles['stat-title']}>Messages</span>
             <span className={styles['stat-icon']}>💬</span>
           </div>
-          <div className={styles['stat-value']}>{stats.messages}</div>
+          <div className={styles['stat-value']}>
+            {stats.messages}
+            {stats.unreadMessages > 0 && (
+              <span className={styles['unread-indicator']}>
+                {stats.unreadMessages} unread
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

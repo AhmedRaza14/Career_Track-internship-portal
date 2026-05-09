@@ -15,6 +15,8 @@ interface Job {
   salary_range: string;
   description: string;
   required_skills: string;
+  experience_level?: string;
+  deadline?: string;
   created_at: string;
 }
 
@@ -44,6 +46,8 @@ export default function JobsPage() {
     salary_range: '',
     description: '',
     required_skills: '',
+    experience_level: 'entry',
+    deadline: '',
   });
 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -70,7 +74,6 @@ export default function JobsPage() {
 
     fetchJobs(token);
 
-    // Fetch student's applications if they're a student
     if (userRole === 'student') {
       fetchMyApplications(token);
     }
@@ -98,8 +101,6 @@ export default function JobsPage() {
       const headers = { Authorization: `Bearer ${token}` };
       const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/applications/my`, { headers });
       const applications = response.data;
-
-      // Extract job IDs from applications
       const jobIds = applications.map((app: any) => app.job_id);
       setAppliedJobIds(jobIds);
     } catch (error) {
@@ -133,11 +134,32 @@ export default function JobsPage() {
   };
 
   const handleCreateJob = async () => {
+    // Validate required fields
+    if (!newJob.title || !newJob.company || !newJob.location || !newJob.description || !newJob.required_skills) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-
-      await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/create`, newJob, { headers });
+      
+      // Prepare the payload matching backend expectations
+      const jobPayload = {
+        title: newJob.title,
+        company: newJob.company,
+        location: newJob.location,
+        job_type: newJob.job_type,
+        salary_range: newJob.salary_range,
+        description: newJob.description,
+        required_skills: newJob.required_skills,
+        experience_level: newJob.experience_level,
+        deadline: newJob.deadline || null
+      };
+      
+      console.log('Sending job payload:', jobPayload);
+      
+      await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/jobs/create`, jobPayload, { headers });
 
       setShowCreateModal(false);
       setNewJob({
@@ -148,11 +170,15 @@ export default function JobsPage() {
         salary_range: '',
         description: '',
         required_skills: '',
+        experience_level: 'entry',
+        deadline: '',
       });
       fetchJobs(token!);
-    } catch (error) {
+      alert('Job created successfully!');
+    } catch (error: any) {
       console.error('Error creating job:', error);
-      alert('Failed to create job');
+      console.error('Response data:', error.response?.data);
+      alert(`Failed to create job: ${error.response?.data?.detail || error.message}`);
     }
   };
 
@@ -178,7 +204,6 @@ export default function JobsPage() {
 
       alert('Application submitted successfully!');
 
-      // Add the job ID to appliedJobIds to show "Applied" badge immediately
       if (selectedJob) {
         setAppliedJobIds([...appliedJobIds, selectedJob.id]);
       }
@@ -215,86 +240,204 @@ export default function JobsPage() {
 
   return (
     <div className={styles['jobs-container']}>
-        <div className={styles['page-header-with-back']}>
-          <button
-            className={styles['back-button']}
-            onClick={() => router.push('/dashboard')}
-          >
-            ← Back to Dashboard
-          </button>
-        </div>
-      <div className={styles['jobs-content-wrapper']}>
-
-        <div className={styles['jobs-header']}>
-        <div>
-          <h1>Jobs</h1>
-          <p>{role === 'student' ? 'Find your next opportunity' : 'Manage your job postings'}</p>
-        </div>
-        {role === 'recruiter' && (
-          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-            Post a Job
-          </button>
-        )}
+      <div className={styles['page-header-with-back']}>
+        <button
+          className={styles['back-button']}
+          onClick={() => router.push('/dashboard')}
+        >
+          ← Back to Dashboard
+        </button>
       </div>
-
-      <div className={styles['search-filter-section']}>
-        <div className={styles['search-bar']}>
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Search jobs by title, company, or description..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ flex: 1 }}
-          />
-          <button className="btn btn-primary" onClick={filterJobs}>
-            Search
-          </button>
+      <div className={styles['jobs-content-wrapper']}>
+        <div className={styles['jobs-header']}>
+          <div>
+            <h1>Jobs</h1>
+            <p>{role === 'student' ? 'Find your next opportunity' : 'Manage your job postings'}</p>
+          </div>
+          {role === 'recruiter' && (
+            <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+              Post a Job
+            </button>
+          )}
         </div>
 
-        <div className={styles.filters}>
-          <div className={styles['filter-group']}>
-            <label className="form-label">Location</label>
+        <div className={styles['search-filter-section']}>
+          <div className={styles['search-bar']}>
             <input
               type="text"
               className="form-input"
-              placeholder="e.g., New York"
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
+              placeholder="Search jobs by title, company, or description..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ flex: 1 }}
             />
+            <button className="btn btn-primary" onClick={filterJobs}>
+              Search
+            </button>
           </div>
-          <div className={styles['filter-group']}>
-            <label className="form-label">Job Type</label>
-            <select
-              className="form-select"
-              value={jobTypeFilter}
-              onChange={(e) => setJobTypeFilter(e.target.value)}
-            >
-              <option value="">All Types</option>
-              <option value="full-time">Full-time</option>
-              <option value="part-time">Part-time</option>
-              <option value="internship">Internship</option>
-              <option value="contract">Contract</option>
-            </select>
+
+          <div className={styles.filters}>
+            <div className={styles['filter-group']}>
+              <label className="form-label">Location</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g., New York"
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+              />
+            </div>
+            <div className={styles['filter-group']}>
+              <label className="form-label">Job Type</label>
+              <select
+                className="form-select"
+                value={jobTypeFilter}
+                onChange={(e) => setJobTypeFilter(e.target.value)}
+              >
+                <option value="">All Types</option>
+                <option value="full-time">Full-time</option>
+                <option value="part-time">Part-time</option>
+                <option value="internship">Internship</option>
+                <option value="contract">Contract</option>
+              </select>
+            </div>
           </div>
         </div>
-      </div>
 
-      {role === 'recruiter' ? (
-        <>
-          {/* My Jobs Section */}
-          {filteredJobs.filter(job => job.recruiter_id === currentUserId).length > 0 && (
-            <div style={{ marginBottom: '40px' }}>
-              <h2 style={{ marginBottom: '20px', fontSize: '1.5rem' }}>My Job Posts</h2>
-              <div className={styles['jobs-grid']}>
-                {filteredJobs.filter(job => job.recruiter_id === currentUserId).map((job) => (
+        {role === 'recruiter' ? (
+          <>
+            {filteredJobs.filter(job => job.recruiter_id === currentUserId).length > 0 && (
+              <div style={{ marginBottom: '40px' }}>
+                <h2 style={{ marginBottom: '20px', fontSize: '1.5rem' }}>My Job Posts</h2>
+                <div className={styles['jobs-grid']}>
+                  {filteredJobs.filter(job => job.recruiter_id === currentUserId).map((job) => (
+                    <div key={job.id} className={styles['job-card']}>
+                      <div className={styles['job-header']}>
+                        <div>
+                          <h2 className={styles['job-title']}>{job.title}</h2>
+                          <p className={styles['job-company']}>{job.company}</p>
+                        </div>
+                        <span className="badge badge-primary">{job.job_type}</span>
+                      </div>
+
+                      <div className={styles['job-meta']}>
+                        <div className={styles['job-meta-item']}>
+                          <span>📍</span>
+                          <span>{job.location}</span>
+                        </div>
+                        <div className={styles['job-meta-item']}>
+                          <span>💰</span>
+                          <span>{job.salary_range || 'Not specified'}</span>
+                        </div>
+                        <div className={styles['job-meta-item']}>
+                          <span>📅</span>
+                          <span>{new Date(job.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+
+                      <p className={styles['job-description']}>
+                        {job.description.length > 200
+                          ? `${job.description.substring(0, 200)}...`
+                          : job.description}
+                      </p>
+
+                      <div className={styles['job-footer']}>
+                        <div className={styles['job-skills']}>
+                          {job.required_skills && job.required_skills.split(',').slice(0, 3).map((req, idx) => (
+                            <span key={idx} className={styles['job-skill-tag']}>
+                              {req.trim()}
+                            </span>
+                          ))}
+                        </div>
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => handleViewApplicants(job.id)}
+                        >
+                          View Applicants
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h2 style={{ marginBottom: '20px', fontSize: '1.5rem' }}>All Job Posts</h2>
+              {filteredJobs.filter(job => job.recruiter_id !== currentUserId).length > 0 ? (
+                <div className={styles['jobs-grid']}>
+                  {filteredJobs.filter(job => job.recruiter_id !== currentUserId).map((job) => (
+                    <div key={job.id} className={styles['job-card']}>
+                      <div className={styles['job-header']}>
+                        <div>
+                          <h2 className={styles['job-title']}>{job.title}</h2>
+                          <p className={styles['job-company']}>{job.company}</p>
+                        </div>
+                        <span className="badge badge-primary">{job.job_type}</span>
+                      </div>
+
+                      <div className={styles['job-meta']}>
+                        <div className={styles['job-meta-item']}>
+                          <span>📍</span>
+                          <span>{job.location}</span>
+                        </div>
+                        <div className={styles['job-meta-item']}>
+                          <span>💰</span>
+                          <span>{job.salary_range || 'Not specified'}</span>
+                        </div>
+                        <div className={styles['job-meta-item']}>
+                          <span>📅</span>
+                          <span>{new Date(job.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+
+                      <p className={styles['job-description']}>
+                        {job.description.length > 200
+                          ? `${job.description.substring(0, 200)}...`
+                          : job.description}
+                      </p>
+
+                      <div className={styles['job-footer']}>
+                        <div className={styles['job-skills']}>
+                          {job.required_skills && job.required_skills.split(',').slice(0, 3).map((req, idx) => (
+                            <span key={idx} className={styles['job-skill-tag']}>
+                              {req.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles['empty-state']}>
+                  <div className={styles['empty-state-icon']}>💼</div>
+                  <h2>No other jobs available</h2>
+                  <p>Check back later for new opportunities</p>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className={styles['jobs-grid']}>
+            {filteredJobs.length > 0 ? (
+              filteredJobs.map((job) => {
+                const hasApplied = appliedJobIds.includes(job.id);
+                return (
                   <div key={job.id} className={styles['job-card']}>
                     <div className={styles['job-header']}>
                       <div>
                         <h2 className={styles['job-title']}>{job.title}</h2>
                         <p className={styles['job-company']}>{job.company}</p>
                       </div>
-                      <span className="badge badge-primary">{job.job_type}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                        <span className="badge badge-primary">{job.job_type}</span>
+                        {hasApplied && (
+                          <span className="badge" style={{ backgroundColor: '#10b981', color: 'white' }}>
+                            ✓ Applied
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className={styles['job-meta']}>
@@ -304,7 +447,7 @@ export default function JobsPage() {
                       </div>
                       <div className={styles['job-meta-item']}>
                         <span>💰</span>
-                        <span>{job.salary_range}</span>
+                        <span>{job.salary_range || 'Not specified'}</span>
                       </div>
                       <div className={styles['job-meta-item']}>
                         <span>📅</span>
@@ -327,315 +470,233 @@ export default function JobsPage() {
                         ))}
                       </div>
                       <button
-                        className="btn btn-primary"
-                        onClick={() => handleViewApplicants(job.id)}
+                        className={hasApplied ? "btn btn-outline" : "btn btn-primary"}
+                        onClick={() => {
+                          if (!hasApplied) {
+                            setSelectedJob(job);
+                            setShowApplyModal(true);
+                          }
+                        }}
+                        disabled={hasApplied}
+                        style={hasApplied ? { cursor: 'not-allowed', opacity: 0.6 } : {}}
                       >
-                        View Applicants
+                        {hasApplied ? 'Applied' : 'Apply Now'}
                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* All Jobs Section */}
-          <div>
-            <h2 style={{ marginBottom: '20px', fontSize: '1.5rem' }}>All Job Posts</h2>
-            {filteredJobs.filter(job => job.recruiter_id !== currentUserId).length > 0 ? (
-              <div className={styles['jobs-grid']}>
-                {filteredJobs.filter(job => job.recruiter_id !== currentUserId).map((job) => (
-                  <div key={job.id} className={styles['job-card']}>
-                    <div className={styles['job-header']}>
-                      <div>
-                        <h2 className={styles['job-title']}>{job.title}</h2>
-                        <p className={styles['job-company']}>{job.company}</p>
-                      </div>
-                      <span className="badge badge-primary">{job.job_type}</span>
-                    </div>
-
-                    <div className={styles['job-meta']}>
-                      <div className={styles['job-meta-item']}>
-                        <span>📍</span>
-                        <span>{job.location}</span>
-                      </div>
-                      <div className={styles['job-meta-item']}>
-                        <span>💰</span>
-                        <span>{job.salary_range}</span>
-                      </div>
-                      <div className={styles['job-meta-item']}>
-                        <span>📅</span>
-                        <span>{new Date(job.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-
-                    <p className={styles['job-description']}>
-                      {job.description.length > 200
-                        ? `${job.description.substring(0, 200)}...`
-                        : job.description}
-                    </p>
-
-                    <div className={styles['job-footer']}>
-                      <div className={styles['job-skills']}>
-                        {job.required_skills && job.required_skills.split(',').slice(0, 3).map((req, idx) => (
-                          <span key={idx} className={styles['job-skill-tag']}>
-                            {req.trim()}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                );
+              })
             ) : (
               <div className={styles['empty-state']}>
                 <div className={styles['empty-state-icon']}>💼</div>
-                <h2>No other jobs available</h2>
-                <p>Check back later for new opportunities</p>
+                <h2>No jobs found</h2>
+                <p>Try adjusting your search filters</p>
               </div>
             )}
           </div>
-        </>
-      ) : (
-        <div className={styles['jobs-grid']}>
-          {filteredJobs.length > 0 ? (
-            filteredJobs.map((job) => {
-              const hasApplied = appliedJobIds.includes(job.id);
-              return (
-              <div key={job.id} className={styles['job-card']}>
-                <div className={styles['job-header']}>
-                  <div>
-                    <h2 className={styles['job-title']}>{job.title}</h2>
-                    <p className={styles['job-company']}>{job.company}</p>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-                    <span className="badge badge-primary">{job.job_type}</span>
-                    {hasApplied && (
-                      <span className="badge" style={{ backgroundColor: '#10b981', color: 'white' }}>
-                        ✓ Applied
-                      </span>
-                    )}
-                  </div>
-                </div>
+        )}
 
-                <div className={styles['job-meta']}>
-                  <div className={styles['job-meta-item']}>
-                    <span>📍</span>
-                    <span>{job.location}</span>
-                  </div>
-                  <div className={styles['job-meta-item']}>
-                    <span>💰</span>
-                    <span>{job.salary_range}</span>
-                  </div>
-                  <div className={styles['job-meta-item']}>
-                    <span>📅</span>
-                    <span>{new Date(job.created_at).toLocaleDateString()}</span>
-                  </div>
-                </div>
-
-                <p className={styles['job-description']}>
-                  {job.description.length > 200
-                    ? `${job.description.substring(0, 200)}...`
-                    : job.description}
-                </p>
-
-                <div className={styles['job-footer']}>
-                  <div className={styles['job-skills']}>
-                    {job.required_skills && job.required_skills.split(',').slice(0, 3).map((req, idx) => (
-                      <span key={idx} className={styles['job-skill-tag']}>
-                        {req.trim()}
-                      </span>
-                    ))}
-                  </div>
-                  <button
-                    className={hasApplied ? "btn btn-outline" : "btn btn-primary"}
-                    onClick={() => {
-                      if (!hasApplied) {
-                        setSelectedJob(job);
-                        setShowApplyModal(true);
-                      }
-                    }}
-                    disabled={hasApplied}
-                    style={hasApplied ? { cursor: 'not-allowed', opacity: 0.6 } : {}}
-                  >
-                    {hasApplied ? 'Applied' : 'Apply Now'}
-                  </button>
-                </div>
+        {/* Create Job Modal - CORRECTED VERSION */}
+        {showCreateModal && (
+          <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
+              <div className="modal-header">
+                <h2>Post a New Job</h2>
+                <button className="close-btn" onClick={() => setShowCreateModal(false)}>×</button>
               </div>
-            );
-            })
-          ) : (
-            <div className={styles['empty-state']}>
-              <div className={styles['empty-state-icon']}>💼</div>
-              <h2>No jobs found</h2>
-              <p>Try adjusting your search filters</p>
-            </div>
-          )}
-        </div>
-      )}
+              
+              <div className="form-group">
+                <label className="form-label">Job Title *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={newJob.title}
+                  onChange={(e) => setNewJob({ ...newJob, title: e.target.value })}
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Company *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={newJob.company}
+                  onChange={(e) => setNewJob({ ...newJob, company: e.target.value })}
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Location *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={newJob.location}
+                  onChange={(e) => setNewJob({ ...newJob, location: e.target.value })}
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Job Type *</label>
+                <select
+                  className="form-select"
+                  value={newJob.job_type}
+                  onChange={(e) => setNewJob({ ...newJob, job_type: e.target.value })}
+                  required
+                >
+                  <option value="full-time">Full-time</option>
+                  <option value="part-time">Part-time</option>
+                  <option value="internship">Internship</option>
+                  <option value="contract">Contract</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Salary Range</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g., $50,000 - $70,000"
+                  value={newJob.salary_range}
+                  onChange={(e) => setNewJob({ ...newJob, salary_range: e.target.value })}
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Description *</label>
+                <textarea
+                  className="form-textarea"
+                  rows={4}
+                  value={newJob.description}
+                  onChange={(e) => setNewJob({ ...newJob, description: e.target.value })}
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Requirements (comma-separated) *</label>
+                <textarea
+                  className="form-textarea"
+                  rows={3}
+                  placeholder="e.g., JavaScript, React, Node.js, Python"
+                  value={newJob.required_skills}
+                  onChange={(e) => setNewJob({ ...newJob, required_skills: e.target.value })}
+                  required
+                />
+              </div>
 
-      {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-            <div className="modal-header">
-              <h2>Post a New Job</h2>
-              <button className="close-btn" onClick={() => setShowCreateModal(false)}>×</button>
+              {/* ADDED: Experience Level Field */}
+              <div className="form-group">
+                <label className="form-label">Experience Level</label>
+                <select
+                  className="form-select"
+                  value={newJob.experience_level}
+                  onChange={(e) => setNewJob({ ...newJob, experience_level: e.target.value })}
+                >
+                  <option value="entry">Entry Level (0-2 years)</option>
+                  <option value="junior">Junior (1-3 years)</option>
+                  <option value="mid">Mid Level (3-5 years)</option>
+                  <option value="senior">Senior (5+ years)</option>
+                  <option value="lead">Lead (8+ years)</option>
+                </select>
+              </div>
+
+              {/* ADDED: Deadline Field */}
+              <div className="form-group">
+                <label className="form-label">Application Deadline</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  value={newJob.deadline}
+                  onChange={(e) => setNewJob({ ...newJob, deadline: e.target.value })}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+
+              <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleCreateJob}>
+                Post Job
+              </button>
             </div>
-            <div className="form-group">
-              <label className="form-label">Job Title</label>
-              <input
-                type="text"
-                className="form-input"
-                value={newJob.title}
-                onChange={(e) => setNewJob({ ...newJob, title: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Company</label>
-              <input
-                type="text"
-                className="form-input"
-                value={newJob.company}
-                onChange={(e) => setNewJob({ ...newJob, company: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Location</label>
-              <input
-                type="text"
-                className="form-input"
-                value={newJob.location}
-                onChange={(e) => setNewJob({ ...newJob, location: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Job Type</label>
-              <select
-                className="form-select"
-                value={newJob.job_type}
-                onChange={(e) => setNewJob({ ...newJob, job_type: e.target.value })}
+          </div>
+        )}
+
+        {showApplyModal && selectedJob && (
+          <div className="modal-overlay" onClick={() => setShowApplyModal(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Apply to {selectedJob.title}</h2>
+                <button className="close-btn" onClick={() => setShowApplyModal(false)}>×</button>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Upload Resume (PDF)</label>
+                <input
+                  type="file"
+                  accept=".pdf"
+                  className="form-input"
+                  onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Cover Letter (optional)</label>
+                <textarea
+                  className="form-textarea"
+                  value={coverLetter}
+                  onChange={(e) => setCoverLetter(e.target.value)}
+                  placeholder="Tell us why you're a great fit..."
+                />
+              </div>
+              <button
+                className="btn btn-primary"
+                style={{ width: '100%' }}
+                onClick={handleApplyJob}
+                disabled={applying || !resumeFile}
               >
-                <option value="full-time">Full-time</option>
-                <option value="part-time">Part-time</option>
-                <option value="internship">Internship</option>
-                <option value="contract">Contract</option>
-              </select>
+                {applying ? 'Submitting...' : 'Submit Application'}
+              </button>
             </div>
-            <div className="form-group">
-              <label className="form-label">Salary Range</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g., $50,000 - $70,000"
-                value={newJob.salary_range}
-                onChange={(e) => setNewJob({ ...newJob, salary_range: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Description</label>
-              <textarea
-                className="form-textarea"
-                value={newJob.description}
-                onChange={(e) => setNewJob({ ...newJob, description: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Requirements (comma-separated)</label>
-              <textarea
-                className="form-textarea"
-                placeholder="e.g., JavaScript, React, Node.js"
-                value={newJob.required_skills}
-                onChange={(e) => setNewJob({ ...newJob, required_skills: e.target.value })}
-              />
-            </div>
-            <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleCreateJob}>
-              Post Job
-            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {showApplyModal && selectedJob && (
-        <div className="modal-overlay" onClick={() => setShowApplyModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Apply to {selectedJob.title}</h2>
-              <button className="close-btn" onClick={() => setShowApplyModal(false)}>×</button>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Upload Resume (PDF)</label>
-              <input
-                type="file"
-                accept=".pdf"
-                className="form-input"
-                onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Cover Letter (optional)</label>
-              <textarea
-                className="form-textarea"
-                value={coverLetter}
-                onChange={(e) => setCoverLetter(e.target.value)}
-                placeholder="Tell us why you're a great fit..."
-              />
-            </div>
-            <button
-              className="btn btn-primary"
-              style={{ width: '100%' }}
-              onClick={handleApplyJob}
-              disabled={applying || !resumeFile}
-            >
-              {applying ? 'Submitting...' : 'Submit Application'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showApplicantsModal && (
-        <div className="modal-overlay" onClick={() => setShowApplicantsModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
-            <div className="modal-header">
-              <h2>Applicants</h2>
-              <button className="close-btn" onClick={() => setShowApplicantsModal(false)}>×</button>
-            </div>
-            {applicants.length > 0 ? (
-              <div className={styles['applicants-list']}>
-                {applicants.map((applicant) => (
-                  <div key={applicant.id} className={styles['applicant-card']}>
-                    <div className={styles['applicant-info']}>
-                      <h3>{applicant.student_name}</h3>
-                      <p>Applied on {new Date(applicant.applied_at).toLocaleDateString()}</p>
-                      {applicant.cover_letter && <p style={{ marginTop: '8px' }}>{applicant.cover_letter}</p>}
-                    </div>
-                    <div className={styles['applicant-actions']}>
-                      <a
-                        href={
-                          applicant.resume_url.includes('localhost')
-                            ? applicant.resume_url.replace(/http:\/\/localhost:\d+/, process.env.NEXT_PUBLIC_API_BASE_URL || '')
-                            : applicant.resume_url.startsWith('http')
-                            ? applicant.resume_url
-                            : `${process.env.NEXT_PUBLIC_API_BASE_URL}${applicant.resume_url}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-primary"
-                      >
-                        View Resume
-                      </a>
-                    </div>
-                  </div>
-                ))}
+        {showApplicantsModal && (
+          <div className="modal-overlay" onClick={() => setShowApplicantsModal(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+              <div className="modal-header">
+                <h2>Applicants</h2>
+                <button className="close-btn" onClick={() => setShowApplicantsModal(false)}>×</button>
               </div>
-            ) : (
-              <p style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-                No applicants yet
-              </p>
-            )}
+              {applicants.length > 0 ? (
+                <div className={styles['applicants-list']}>
+                  {applicants.map((applicant) => (
+                    <div key={applicant.application_id} className={styles['applicant-card']}>
+                      <div className={styles['applicant-info']}>
+                        <h3>{applicant.student_name}</h3>
+                        <p>Applied on {new Date(applicant.applied_at).toLocaleDateString()}</p>
+                        {applicant.cover_letter && <p style={{ marginTop: '8px' }}>{applicant.cover_letter}</p>}
+                      </div>
+                      <div className={styles['applicant-actions']}>
+                        <a
+                          href={applicant.resume_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-primary"
+                        >
+                          View Resume
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                  No applicants yet
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
     </div>
   );
 }

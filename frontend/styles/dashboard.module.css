@@ -163,6 +163,20 @@
   font-size: 32px;
   font-weight: 700;
   color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.unread-indicator {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ef4444;
+  background-color: #fee2e2;
+  padding: 4px 12px;
+  border-radius: 12px;
+  display: inline-block;
+  width: fit-content;
 }
 
 .notification-badge {

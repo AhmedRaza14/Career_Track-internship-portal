@@ -11,6 +11,7 @@ interface Conversation {
   other_user_name: string;
   last_message: string;
   last_message_time: string;
+  unread_count: number;
 }
 
 interface Message {
@@ -89,6 +90,9 @@ export default function MessagesPage() {
         {},
         { headers }
       );
+
+      // Refresh conversations to update unread count
+      fetchConversations(token);
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
@@ -127,16 +131,22 @@ export default function MessagesPage() {
   };
 
   const formatTime = (dateString: string) => {
+    // Parse the date string and ensure it's treated as UTC if it doesn't have timezone info
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
     if (diffInHours < 24) {
-      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      // Use user's local timezone
+      return date.toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
     } else if (diffInHours < 48) {
       return 'Yesterday';
     } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     }
   };
 
@@ -175,6 +185,11 @@ export default function MessagesPage() {
                 >
                   <div className={styles['conversation-name']}>
                     {conversation.other_user_name}
+                    {conversation.unread_count > 0 && (
+                      <span className={styles['unread-badge']}>
+                        {conversation.unread_count}
+                      </span>
+                    )}
                   </div>
                   <div className={styles['conversation-preview']}>
                     {conversation.last_message}

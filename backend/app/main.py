@@ -507,16 +507,49 @@ def create_job(
     """Create a new job posting (recruiters only)"""
     if current_user.role != UserRole.RECRUITER:
         raise HTTPException(status_code=403, detail="Only recruiters can create jobs")
-
+    
+    # Validate job_type - convert string to JobType enum
+    try:
+        job_type_enum = JobType(job_data.job_type.replace('-', '_'))
+    except ValueError:
+        valid_types = [t.value for t in JobType]
+        raise HTTPException(status_code=400, detail=f"Invalid job type. Must be one of: {valid_types}")
+    
+    # Create job with all fields including experience_level and deadline
     job = Job(
         recruiter_id=current_user.id,
-        **job_data.model_dump()
+        title=job_data.title,
+        company=job_data.company,
+        description=job_data.description,
+        job_type=job_type_enum,
+        location=job_data.location,
+        salary_range=job_data.salary_range,
+        required_skills=job_data.required_skills,
+        experience_level=job_data.experience_level,  # ADDED
+        deadline=job_data.deadline,  # ADDED
+        is_active=True
     )
     session.add(job)
     session.commit()
     session.refresh(job)
-    return job
-
+    
+    # Return response with all fields
+    return {
+        "id": job.id,
+        "recruiter_id": job.recruiter_id,
+        "title": job.title,
+        "company": job.company,
+        "description": job.description,
+        "job_type": job.job_type.value,
+        "location": job.location,
+        "salary_range": job.salary_range,
+        "required_skills": job.required_skills,
+        "experience_level": job.experience_level,
+        "deadline": job.deadline,
+        "is_active": job.is_active,
+        "created_at": job.created_at
+    }
+    
 @app.get("/jobs", response_model=List[JobResponse])
 def get_jobs(session: Session = Depends(get_session)):
     """Get all active jobs"""
