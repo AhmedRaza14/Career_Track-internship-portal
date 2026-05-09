@@ -30,17 +30,25 @@ async def upload_resume(file: UploadFile) -> str:
         raise HTTPException(status_code=400, detail="File size exceeds 5MB limit")
 
     try:
-        # Upload to Cloudinary
+        # Upload to Cloudinary as image type (allows transformations)
         result = cloudinary.uploader.upload(
             contents,
-            resource_type="raw",
+            resource_type="image",
+            format="pdf",
             folder="careertrack/resumes",
             public_id=file.filename.replace('.pdf', ''),
-            overwrite=True
+            overwrite=True,
+            type="upload",  # Public upload
+            access_mode="public"  # Make publicly accessible
         )
 
-        # Return the secure URL from Cloudinary
-        return result['secure_url']
+        # Return URL with fl_attachment flag removed (forces inline viewing)
+        secure_url = result['secure_url']
+        # Replace /upload/ with /upload/fl_attachment:false/ to force inline viewing
+        if '/upload/' in secure_url:
+            secure_url = secure_url.replace('/upload/', '/upload/fl_attachment:false/')
+
+        return secure_url
     except Exception as e:
         print(f"Upload error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
@@ -66,7 +74,9 @@ async def upload_profile_picture(file: UploadFile) -> str:
         result = cloudinary.uploader.upload(
             contents,
             folder="careertrack/profile_pictures",
-            overwrite=True
+            overwrite=True,
+            type="upload",  # Public upload
+            access_mode="public"  # Make publicly accessible
         )
 
         # Return the secure URL from Cloudinary
