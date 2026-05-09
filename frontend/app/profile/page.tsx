@@ -7,9 +7,12 @@ import styles from '../../styles/profile.module.css';
 
 interface Profile {
   bio: string;
+  education: string;
+  phone: string;
   location: string;
   linkedin_url: string;
   github_url: string;
+  portfolio_url: string;
   resume_url: string;
 }
 
